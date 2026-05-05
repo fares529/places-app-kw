@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html[lang="ar"] body {
+    font-family: var(--font-tajawal), system-ui, sans-serif;
+  }
+
+  html[lang="en"] body {
+    font-family: var(--font-inter), system-ui, sans-serif;
+  }
+
+  body {
+    background: rgb(249 250 251);
+    color: rgb(17 24 39);
+    min-height: 100vh;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgb(209 213 219);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(156 163 175);
+  }
+}
+
+@layer components {
+  .container-app {
+    @apply px-4;
+  }
+
+  .phone-shell {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    background: linear-gradient(135deg, #e5e7eb 0%, #f3f4f6 50%, #e5e7eb 100%);
+  }
+
+  .phone-screen {
+    width: 100%;
+    max-width: 430px;
+    min-height: 100vh;
+    background: rgb(249 250 251);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  @media (min-width: 640px) {
+    .phone-shell {
+      padding: 24px 0;
+    }
+    .phone-screen {
+      min-height: calc(100vh - 48px);
+      max-height: calc(100vh - 48px);
+      border-radius: 40px;
+      box-shadow:
+        0 0 0 12px #1f2937,
+        0 0 0 14px #374151,
+        0 25px 50px -12px rgba(0, 0, 0, 0.4);
+      overflow: hidden;
+    }
+    .phone-screen main {
+      overflow-y: auto;
+    }
+  }
+
+  .card-shadow {
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  }
+
+  .card-shadow-hover {
+    box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.08), 0 4px 10px -4px rgb(0 0 0 / 0.04);
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Leaflet fixes */
+.leaflet-container {
+  font-family: inherit;
+  z-index: 0;
+}
