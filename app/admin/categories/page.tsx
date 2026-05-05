@@ -65,8 +65,8 @@ function EditModal({ category, onClose, onSave }: EditModalProps) {
   const [icon, setIcon] = useState(category.icon);
   const [color, setColor] = useState({ color: category.color, bgColor: category.bgColor });
 
-  const handleSave = () => {
-    updateCategory(category.id, { nameAr, nameEn, icon, color: color.color, bgColor: color.bgColor });
+  const handleSave = async () => {
+    await updateCategory(category.id, { nameAr, nameEn, icon, color: color.color, bgColor: color.bgColor });
     onSave();
     onClose();
   };
@@ -173,19 +173,20 @@ export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [editing, setEditing] = useState<Category | null>(null);
 
-  const refresh = () => {
-    setPlaces(getPlaces());
-    setCategories(getCategories());
+  const refresh = async () => {
+    const [p, c] = await Promise.all([getPlaces(), getCategories()]);
+    setPlaces(p);
+    setCategories(c);
   };
 
   useEffect(() => {
     refresh();
   }, []);
 
-  const handleResetAll = () => {
+  const handleResetAll = async () => {
     if (confirm(locale === 'ar' ? 'إعادة تعيين الفئات للافتراضي؟' : 'Reset categories to defaults?')) {
-      resetCategoryOverrides();
-      refresh();
+      await resetCategoryOverrides();
+      await refresh();
     }
   };
 

@@ -1,80 +1,65 @@
 'use client';
 
 import { Place } from '../types';
-import { mockPlaces } from '../data/mockPlaces';
 
-const STORAGE_KEY = 'kpg:places';
-const VERSION_KEY = 'kpg:version';
-const CURRENT_VERSION = '1.3';
-
-function isClient() {
-  return typeof window !== 'undefined';
+async function api<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`API ${url} failed: ${res.status}`);
+  return res.json();
 }
 
-function readStorage(): Place[] | null {
-  if (!isClient()) return null;
+export async function getPlaces(opts?: {
+  category?: string;
+  featured?: boolean;
+  q?: string;
+}): Promise<Place[]> {
+  const params = new URLSearchParams();
+  if (opts?.category) params.set('category', opts.category);
+  if (opts?.featured) params.set('featured', 'true');
+  if (opts?.q) params.set('q', opts.q);
+  const qs = params.toString();
+  return api<Place[]>(`/api/places${qs ? `?${qs}` : ''}`);
+}
+
+export async function getPlace(id: string): Promise<Place | null> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const version = localStorage.getItem(VERSION_KEY);
-    if (!raw || version !== CURRENT_VERSION) return null;
-    return JSON.parse(raw);
+    return await api<Place>(`/api/places/${id}`);
   } catch {
     return null;
   }
 }
 
-function writeStorage(places: Place[]): void {
-  if (!isClient()) return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(places));
-  localStorage.setItem(VERSION_KEY, CURRENT_VERSION);
+export async function addPlace(place: Omit<Place, 'id' | 'createdAt'>): Promise<Place> {
+  return api<Place>('/api/places', {
+    method: 'POST',
+    body: JSON.stringify(place),
+  });
 }
 
-function ensureSeeded(): Place[] {
-  const existing = readStorage();
-  if (existing && existing.length > 0) return existing;
-  writeStorage(mockPlaces);
-  return mockPlaces;
+export async function updatePlace(id: string, updates: Partial<Place>): Promise<Place | null> {
+  try {
+    return await api<Place>(`/api/places/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  } catch {
+    return null;
+  }
 }
 
-export function getPlaces(): Place[] {
-  if (!isClient()) return mockPlaces;
-  return ensureSeeded();
+export async function deletePlace(id: string): Promise<boolean> {
+  try {
+    await api<{ ok: true }>(`/api/places/${id}`, { method: 'DELETE' });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-export function getPlace(id: string): Place | null {
-  return getPlaces().find((p) => p.id === id) ?? null;
-}
-
-export function addPlace(place: Omit<Place, 'id' | 'createdAt'>): Place {
-  const places = getPlaces();
-  const newPlace: Place = {
-    ...place,
-    id: `p${String(Date.now()).slice(-6)}`,
-    createdAt: new Date().toISOString().split('T')[0],
-  };
-  writeStorage([newPlace, ...places]);
-  return newPlace;
-}
-
-export function updatePlace(id: string, updates: Partial<Place>): Place | null {
-  const places = getPlaces();
-  const idx = places.findIndex((p) => p.id === id);
-  if (idx === -1) return null;
-  const updated = { ...places[idx], ...updates, id };
-  const newList = [...places];
-  newList[idx] = updated;
-  writeStorage(newList);
-  return updated;
-}
-
-export function deletePlace(id: string): boolean {
-  const places = getPlaces();
-  const filtered = places.filter((p) => p.id !== id);
-  if (filtered.length === places.length) return false;
-  writeStorage(filtered);
-  return true;
-}
-
-export function resetToMockData(): void {
-  writeStorage(mockPlaces);
+export async function resetToMockData(): Promise<void> {
+  await api<{ ok: true }>('/api/admin/reset', { method: 'POST' });
 }

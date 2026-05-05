@@ -1,54 +1,42 @@
 'use client';
 
 import { Category, CategoryId } from '../types';
-import { mockCategories } from '../data/mockCategories';
 
-const STORAGE_KEY = 'kpg:categories';
-
-function isClient() {
-  return typeof window !== 'undefined';
+async function api<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`API ${url} failed: ${res.status}`);
+  return res.json();
 }
 
-type Override = Partial<Pick<Category, 'nameAr' | 'nameEn' | 'icon' | 'color' | 'bgColor'>>;
-type Overrides = Record<CategoryId, Override>;
+export async function getCategories(): Promise<Category[]> {
+  return api<Category[]>('/api/categories');
+}
 
-function readOverrides(): Overrides {
-  if (!isClient()) return {} as Overrides;
+export async function getCategory(id: CategoryId): Promise<Category | undefined> {
+  const all = await getCategories();
+  return all.find((c) => c.id === id);
+}
+
+export async function updateCategory(
+  id: CategoryId,
+  updates: Partial<Pick<Category, 'nameAr' | 'nameEn' | 'icon' | 'color' | 'bgColor'>>
+): Promise<Category | null> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : ({} as Overrides);
+    return await api<Category>(`/api/categories/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
   } catch {
-    return {} as Overrides;
+    return null;
   }
 }
 
-function writeOverrides(overrides: Overrides) {
-  if (!isClient()) return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides));
-}
-
-export function getCategories(): Category[] {
-  const overrides = readOverrides();
-  return mockCategories.map((cat) => ({
-    ...cat,
-    ...(overrides[cat.id] || {}),
-  }));
-}
-
-export function getCategory(id: CategoryId): Category | undefined {
-  return getCategories().find((c) => c.id === id);
-}
-
-export function updateCategory(id: CategoryId, updates: Override): Category | null {
-  const overrides = readOverrides();
-  overrides[id] = { ...(overrides[id] || {}), ...updates };
-  writeOverrides(overrides);
-  return getCategory(id) ?? null;
-}
-
-export function resetCategoryOverrides() {
-  if (!isClient()) return;
-  localStorage.removeItem(STORAGE_KEY);
+export async function resetCategoryOverrides(): Promise<void> {
+  // No-op on backend (categories are now stored in DB, not overrides)
 }
 
 export const colorPresets: { name: string; color: string; bgColor: string }[] = [

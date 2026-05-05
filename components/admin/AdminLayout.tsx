@@ -22,9 +22,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { href: '/admin/categories', icon: Tag, label: t('admin.manageCategories') },
   ];
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (confirm(t('admin.resetConfirm'))) {
-      resetToMockData();
+      await resetToMockData();
       window.location.reload();
     }
   };

@@ -13,8 +13,11 @@ export function FeaturedPlaces() {
   const [places, setPlaces] = useState<Place[]>([]);
 
   useEffect(() => {
-    const all = getPlaces();
-    setPlaces(all.filter((p) => p.isFeatured).slice(0, 8));
+    let cancelled = false;
+    getPlaces({ featured: true }).then((all) => {
+      if (!cancelled) setPlaces(all.slice(0, 8));
+    });
+    return () => { cancelled = true; };
   }, []);
 
   if (places.length === 0) return null;

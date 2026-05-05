@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { ArrowLeft, ArrowRight, MessageCircle, RefreshCw, Copy } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n/context';
 import { getPendingOTP, verifyOTP, requestOTP, PendingOTP } from '@/lib/store/authStore';
-import { recordCountryVisit } from '@/lib/store/visitsStore';
 import { getCountry } from '@/lib/data/countries';
 import { Button } from '@/components/ui/Button';
 
@@ -75,10 +74,9 @@ export default function VerifyPage() {
     else inputRefs.current[pasted.length]?.focus();
   };
 
-  const submitCode = (code: string) => {
-    const result = verifyOTP(code);
+  const submitCode = async (code: string) => {
+    const result = await verifyOTP(code);
     if (result.ok) {
-      recordCountryVisit(result.user.countryCode);
       setSuccess(true);
       setTimeout(() => router.push('/'), 1200);
     } else {
@@ -92,9 +90,9 @@ export default function VerifyPage() {
     }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     if (!pending || cooldown > 0) return;
-    const fresh = requestOTP(pending.phone, pending.fullPhone, pending.countryCode);
+    const fresh = await requestOTP(pending.phone, pending.fullPhone, pending.countryCode);
     setPending(fresh);
     setCooldown(RESEND_COOLDOWN);
     setShowDemoCode(true);
@@ -102,7 +100,7 @@ export default function VerifyPage() {
   };
 
   const copyCode = () => {
-    if (!pending) return;
+    if (!pending?.code) return;
     navigator.clipboard.writeText(pending.code);
   };
 

@@ -7,7 +7,8 @@ import { Place } from '@/lib/types';
 import { useTranslation } from '@/lib/i18n/context';
 import { getPlaces } from '@/lib/store/placesStore';
 import { getCategories } from '@/lib/store/categoriesStore';
-import { getTotalVisits, getAppVisits, getMostVisited, getCountryStats, getTotalCountryVisits } from '@/lib/store/visitsStore';
+import { getStats, DashboardStats } from '@/lib/store/visitsStore';
+import { Category } from '@/lib/types';
 import { gulfCountries } from '@/lib/data/countries';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Rating } from '@/components/ui/Rating';
@@ -16,26 +17,29 @@ import { Icon } from '@/components/ui/Icon';
 export default function AdminDashboardPage() {
   const { t, locale } = useTranslation();
   const [places, setPlaces] = useState<Place[]>([]);
-  const [categories, setCategories] = useState(getCategories());
-  const [totalVisits, setTotalVisits] = useState(0);
-  const [appVisits, setAppVisits] = useState(0);
-  const [topVisited, setTopVisited] = useState<{ placeId: string; count: number }[]>([]);
-  const [countryStats, setCountryStats] = useState<Record<string, number>>({});
-  const [totalCountryVisits, setTotalCountryVisits] = useState(0);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
 
   useEffect(() => {
-    setPlaces(getPlaces());
-    setCategories(getCategories());
-    setTotalVisits(getTotalVisits());
-    setAppVisits(getAppVisits());
-    setTopVisited(getMostVisited(5));
-    setCountryStats(getCountryStats());
-    setTotalCountryVisits(getTotalCountryVisits());
+    let cancelled = false;
+    (async () => {
+      const [p, c, s] = await Promise.all([getPlaces(), getCategories(), getStats()]);
+      if (!cancelled) {
+        setPlaces(p);
+        setCategories(c);
+        setStats(s);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
-  const avgRating =
-    places.length > 0 ? places.reduce((sum, p) => sum + p.rating, 0) / places.length : 0;
-  const featuredCount = places.filter((p) => p.isFeatured).length;
+  const totalVisits = stats?.totalVisits ?? 0;
+  const appVisits = stats?.appVisits ?? 0;
+  const topVisited = stats?.topVisited ?? [];
+  const countryStats = stats?.countryStats ?? {};
+  const totalCountryVisits = stats?.totalCountryVisits ?? 0;
+  const avgRating = stats?.avgRating ?? 0;
+  const featuredCount = stats?.featuredCount ?? places.filter((p) => p.isFeatured).length;
   const recentPlaces = [...places]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, 5);
@@ -44,7 +48,7 @@ export default function AdminDashboardPage() {
     .map((v) => ({ ...v, place: places.find((p) => p.id === v.placeId) }))
     .filter((x) => x.place);
 
-  const stats = [
+  const statsCards = [
     {
       label: locale === 'ar' ? 'فتحات التطبيق' : 'App Opens',
       value: appVisits.toLocaleString(),
@@ -90,7 +94,7 @@ export default function AdminDashboardPage() {
   return (
     <AdminLayout>
       <div className="grid grid-cols-2 gap-2 mb-4">
-        {stats.slice(0, 2).map((stat) => {
+        {statsCards.slice(0, 2).map((stat) => {
           const Icon = stat.icon;
           return (
             <div
@@ -108,7 +112,7 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-2 mb-4">
-        {stats.slice(2).map((stat) => {
+        {statsCards.slice(2).map((stat) => {
           const Icon = stat.icon;
           return (
             <div

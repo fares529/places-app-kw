@@ -20,7 +20,7 @@ export default function LoginPage() {
 
   const BackArrow = locale === 'ar' ? ArrowRight : ArrowLeft;
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -34,9 +34,13 @@ export default function LoginPage() {
       return;
     }
 
-    const fullPhone = `${country.dial}${cleanPhone}`;
-    requestOTP(cleanPhone, fullPhone, country.code);
-    router.push('/verify');
+    try {
+      const fullPhone = `${country.dial}${cleanPhone}`;
+      await requestOTP(cleanPhone, fullPhone, country.code);
+      router.push('/verify');
+    } catch (err) {
+      setError(locale === 'ar' ? 'فشل إرسال الرمز، حاول مرة أخرى' : 'Failed to send code, try again');
+    }
   };
 
   return (

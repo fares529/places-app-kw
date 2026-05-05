@@ -47,16 +47,22 @@ export default function PlaceDetailsPage() {
 
   useEffect(() => {
     const id = params?.id as string;
-    const found = getPlace(id);
-    setPlace(found);
-    if (found) {
-      setVisits(recordVisit(id));
-    }
+    let cancelled = false;
+    (async () => {
+      const found = await getPlace(id);
+      if (cancelled) return;
+      setPlace(found);
+      if (found) {
+        const c = await recordVisit(id);
+        if (!cancelled) setVisits(c);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [params?.id]);
 
-  const handleSaveEdit = (data: Omit<Place, 'id' | 'createdAt'>) => {
+  const handleSaveEdit = async (data: Omit<Place, 'id' | 'createdAt'>) => {
     if (!place) return;
-    const updated = updatePlace(place.id, data);
+    const updated = await updatePlace(place.id, data);
     if (updated) setPlace(updated);
     setShowEdit(false);
   };

@@ -22,7 +22,11 @@ export function PlaceCard({ place, variant = 'default' }: PlaceCardProps) {
   const [visits, setVisits] = useState(0);
 
   useEffect(() => {
-    setVisits(getVisits(place.id));
+    let cancelled = false;
+    getVisits(place.id).then((c) => {
+      if (!cancelled) setVisits(c);
+    });
+    return () => { cancelled = true; };
   }, [place.id]);
 
   const name = locale === 'ar' ? place.nameAr : place.nameEn;

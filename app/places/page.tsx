@@ -23,7 +23,11 @@ function PlacesContent() {
   const [query, setQuery] = useState(initialQuery);
 
   useEffect(() => {
-    setAllPlaces(getPlaces());
+    let cancelled = false;
+    getPlaces().then((p) => {
+      if (!cancelled) setAllPlaces(p);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {

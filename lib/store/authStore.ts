@@ -1,27 +1,37 @@
 'use client';
 
 const USER_KEY = 'kpg:user';
-const OTP_KEY = 'kpg:pending-otp';
-
-const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+const PENDING_KEY = 'kpg:pending-otp';
 
 export interface User {
-  phone: string;       // raw digits (no dial code)
-  fullPhone: string;   // dial + phone
-  countryCode: string; // 'KW', 'SA', etc.
+  phone: string;
+  fullPhone: string;
+  countryCode: string;
   loggedInAt: string;
 }
 
 export interface PendingOTP {
-  code: string;
   phone: string;
   fullPhone: string;
   countryCode: string;
-  createdAt: number;
+  code?: string; // Demo Mode only — backend returns it for in-app display
+  expiresAt: string;
 }
 
 function isClient() {
   return typeof window !== 'undefined';
+}
+
+async function api<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+    cache: 'no-store',
+  });
+  if (!res.ok && res.status !== 401) {
+    throw new Error(`API ${url} failed: ${res.status}`);
+  }
+  return res.json();
 }
 
 export function getCurrentUser(): User | null {
@@ -38,65 +48,77 @@ export function isLoggedIn(): boolean {
   return getCurrentUser() !== null;
 }
 
-function generateCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-export function requestOTP(phone: string, fullPhone: string, countryCode: string): PendingOTP {
-  const otp: PendingOTP = {
-    code: generateCode(),
+export async function requestOTP(
+  phone: string,
+  fullPhone: string,
+  countryCode: string
+): Promise<PendingOTP> {
+  const r = await api<{ ok: true; demo: boolean; code: string; expiresAt: string }>(
+    '/api/auth/request-otp',
+    {
+      method: 'POST',
+      body: JSON.stringify({ phone, fullPhone, countryCode }),
+    }
+  );
+  const pending: PendingOTP = {
     phone,
     fullPhone,
     countryCode,
-    createdAt: Date.now(),
+    code: r.code,
+    expiresAt: r.expiresAt,
   };
   if (isClient()) {
-    localStorage.setItem(OTP_KEY, JSON.stringify(otp));
+    localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
   }
-  return otp;
+  return pending;
 }
 
 export function getPendingOTP(): PendingOTP | null {
   if (!isClient()) return null;
   try {
-    const raw = localStorage.getItem(OTP_KEY);
+    const raw = localStorage.getItem(PENDING_KEY);
     if (!raw) return null;
-    const otp = JSON.parse(raw) as PendingOTP;
-    if (Date.now() - otp.createdAt > OTP_EXPIRY_MS) {
-      localStorage.removeItem(OTP_KEY);
+    const pending = JSON.parse(raw) as PendingOTP;
+    if (new Date(pending.expiresAt) < new Date()) {
+      localStorage.removeItem(PENDING_KEY);
       return null;
     }
-    return otp;
+    return pending;
   } catch {
     return null;
   }
 }
 
-export function verifyOTP(code: string): { ok: true; user: User } | { ok: false; reason: 'expired' | 'invalid' } {
+export async function verifyOTP(
+  code: string
+): Promise<{ ok: true; user: User } | { ok: false; reason: 'expired' | 'invalid' }> {
   const pending = getPendingOTP();
   if (!pending) return { ok: false, reason: 'expired' };
-  if (pending.code !== code.trim()) return { ok: false, reason: 'invalid' };
 
-  const user: User = {
-    phone: pending.phone,
-    fullPhone: pending.fullPhone,
-    countryCode: pending.countryCode,
-    loggedInAt: new Date().toISOString(),
-  };
-  if (isClient()) {
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
-    localStorage.removeItem(OTP_KEY);
+  const r = await api<
+    { ok: true; user: User } | { ok: false; reason: 'expired' | 'invalid' }
+  >('/api/auth/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify({ phone: pending.phone, code }),
+  });
+
+  if (r.ok) {
+    if (isClient()) {
+      localStorage.setItem(USER_KEY, JSON.stringify(r.user));
+      localStorage.removeItem(PENDING_KEY);
+    }
+    return { ok: true, user: r.user };
   }
-  return { ok: true, user };
+  return r;
 }
 
 export function logout() {
   if (!isClient()) return;
   localStorage.removeItem(USER_KEY);
-  localStorage.removeItem(OTP_KEY);
+  localStorage.removeItem(PENDING_KEY);
 }
 
 export function clearPendingOTP() {
   if (!isClient()) return;
-  localStorage.removeItem(OTP_KEY);
+  localStorage.removeItem(PENDING_KEY);
 }

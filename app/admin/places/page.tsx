@@ -28,7 +28,9 @@ export default function AdminPlacesPage() {
   const [query, setQuery] = useState('');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
-  const refresh = () => setPlaces(getPlaces());
+  const refresh = async () => {
+    setPlaces(await getPlaces());
+  };
 
   useEffect(() => {
     refresh();
@@ -40,34 +42,34 @@ export default function AdminPlacesPage() {
     return () => document.removeEventListener('click', handler);
   }, []);
 
-  const handleSave = (data: Omit<Place, 'id' | 'createdAt'>) => {
+  const handleSave = async (data: Omit<Place, 'id' | 'createdAt'>) => {
     if (editingPlace) {
-      updatePlace(editingPlace.id, data);
+      await updatePlace(editingPlace.id, data);
     } else {
-      addPlace(data);
+      await addPlace(data);
     }
     setShowForm(false);
     setEditingPlace(null);
-    refresh();
+    await refresh();
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm(t('admin.confirmDelete'))) {
-      deletePlace(id);
-      refresh();
+      await deletePlace(id);
+      await refresh();
     }
   };
 
-  const handleToggleFeatured = (place: Place) => {
-    updatePlace(place.id, { isFeatured: !place.isFeatured });
-    refresh();
+  const handleToggleFeatured = async (place: Place) => {
+    await updatePlace(place.id, { isFeatured: !place.isFeatured });
+    await refresh();
   };
 
-  const handleSwapImage = (place: Place) => {
+  const handleSwapImage = async (place: Place) => {
     if (place.images.length < 2) return;
     const swapped = [place.images[1], place.images[0], ...place.images.slice(2)];
-    updatePlace(place.id, { images: swapped });
-    refresh();
+    await updatePlace(place.id, { images: swapped });
+    await refresh();
   };
 
   const handleEdit = (place: Place) => {
