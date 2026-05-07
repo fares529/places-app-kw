@@ -1,27 +1,48 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-let client: SupabaseClient | null = null;
+let publicClient: SupabaseClient | null = null;
+let adminClient: SupabaseClient | null = null;
 
-function buildClient(): SupabaseClient {
+function buildPublic(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
   if (!url || !key) {
-    throw new Error(
-      'Missing Supabase env vars. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel project settings → Environment Variables.'
-    );
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY');
   }
-
-  return createClient(url, key, {
-    auth: { persistSession: false },
-  });
+  return createClient(url, key, { auth: { persistSession: false } });
 }
 
-// Lazy proxy: only initialize on first use, so build-time evaluation
-// (which has no env vars) doesn't crash module-loading phase.
+function buildAdmin(): SupabaseClient {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error(
+      'Missing SUPABASE_SERVICE_ROLE_KEY. Add it from Supabase Dashboard → Settings → API → service_role.'
+    );
+  }
+  return createClient(url, key, { auth: { persistSession: false } });
+}
+
+/**
+ * Public client — uses anon key, subject to RLS.
+ * Use for: reading places + categories, inserting visits + app_visits.
+ * SAFE TO EXPOSE in browser bundles.
+ */
 export const supabase = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
-    if (!client) client = buildClient();
-    return Reflect.get(client, prop, client);
+    if (!publicClient) publicClient = buildPublic();
+    return Reflect.get(publicClient, prop, publicClient);
+  },
+});
+
+/**
+ * Admin client — uses service_role key, BYPASSES RLS.
+ * Use ONLY in server-side API routes for: auth (otps/users), admin CRUD, stats.
+ * NEVER import this in a client component or expose in browser code.
+ */
+export const supabaseAdmin = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    if (!adminClient) adminClient = buildAdmin();
+    return Reflect.get(adminClient, prop, adminClient);
   },
 });

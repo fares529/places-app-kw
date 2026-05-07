@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/db/supabase';
-
-export const dynamic = 'force-dynamic';
+import { supabaseAdmin as supabase } from '@/lib/db/supabase';
 import { mockPlaces } from '@/lib/data/mockPlaces';
 import { placeToDbInsert } from '@/lib/db/serializers';
+import { requireAdmin } from '@/lib/auth/admin';
 
-export async function POST() {
+export const dynamic = 'force-dynamic';
+
+export async function POST(req: Request) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   await supabase.from('visits').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   await supabase.from('places').delete().neq('id', '');
 

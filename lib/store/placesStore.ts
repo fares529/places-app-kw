@@ -1,11 +1,14 @@
 'use client';
 
 import { Place } from '../types';
+import { adminHeaders } from '../auth/adminClient';
 
-async function api<T>(url: string, init?: RequestInit): Promise<T> {
+async function api<T>(url: string, init?: RequestInit, admin = false): Promise<T> {
+  const baseHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers = admin ? adminHeaders(baseHeaders) : baseHeaders;
   const res = await fetch(url, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+    headers: { ...headers, ...(init?.headers as Record<string, string> || {}) },
     cache: 'no-store',
   });
   if (!res.ok) throw new Error(`API ${url} failed: ${res.status}`);
@@ -37,7 +40,7 @@ export async function addPlace(place: Omit<Place, 'id' | 'createdAt'>): Promise<
   return api<Place>('/api/places', {
     method: 'POST',
     body: JSON.stringify(place),
-  });
+  }, true);
 }
 
 export async function updatePlace(id: string, updates: Partial<Place>): Promise<Place | null> {
@@ -45,7 +48,7 @@ export async function updatePlace(id: string, updates: Partial<Place>): Promise<
     return await api<Place>(`/api/places/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(updates),
-    });
+    }, true);
   } catch {
     return null;
   }
@@ -53,7 +56,7 @@ export async function updatePlace(id: string, updates: Partial<Place>): Promise<
 
 export async function deletePlace(id: string): Promise<boolean> {
   try {
-    await api<{ ok: true }>(`/api/places/${id}`, { method: 'DELETE' });
+    await api<{ ok: true }>(`/api/places/${id}`, { method: 'DELETE' }, true);
     return true;
   } catch {
     return false;
@@ -61,5 +64,5 @@ export async function deletePlace(id: string): Promise<boolean> {
 }
 
 export async function resetToMockData(): Promise<void> {
-  await api<{ ok: true }>('/api/admin/reset', { method: 'POST' });
+  await api<{ ok: true }>('/api/admin/reset', { method: 'POST' }, true);
 }

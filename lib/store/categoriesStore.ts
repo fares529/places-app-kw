@@ -1,11 +1,14 @@
 'use client';
 
 import { Category, CategoryId } from '../types';
+import { adminHeaders } from '../auth/adminClient';
 
-async function api<T>(url: string, init?: RequestInit): Promise<T> {
+async function api<T>(url: string, init?: RequestInit, admin = false): Promise<T> {
+  const baseHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers = admin ? adminHeaders(baseHeaders) : baseHeaders;
   const res = await fetch(url, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+    headers: { ...headers, ...(init?.headers as Record<string, string> || {}) },
     cache: 'no-store',
   });
   if (!res.ok) throw new Error(`API ${url} failed: ${res.status}`);
@@ -29,7 +32,7 @@ export async function updateCategory(
     return await api<Category>(`/api/categories/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(updates),
-    });
+    }, true);
   } catch {
     return null;
   }

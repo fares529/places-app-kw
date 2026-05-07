@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/db/supabase';
+import { supabaseAdmin as supabase } from '@/lib/db/supabase';
+import { serializeCategory, DbCategoryRow } from '@/lib/db/serializers';
+import { requireAdmin } from '@/lib/auth/admin';
 
 export const dynamic = 'force-dynamic';
-import { serializeCategory, DbCategoryRow } from '@/lib/db/serializers';
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   const body = await req.json();
   const updates: Record<string, unknown> = {};
   if (body.nameAr !== undefined) updates.name_ar = body.nameAr;

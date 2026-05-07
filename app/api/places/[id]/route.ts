@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/db/supabase';
+import { supabaseAdmin as supabase } from '@/lib/db/supabase';
+import { serializePlace, placeToDbUpdate, DbPlaceRow } from '@/lib/db/serializers';
+import { requireAdmin } from '@/lib/auth/admin';
 
 export const dynamic = 'force-dynamic';
-import { serializePlace, placeToDbUpdate, DbPlaceRow } from '@/lib/db/serializers';
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   const { data, error } = await supabase
@@ -16,6 +17,9 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   const body = await req.json();
   const updates = placeToDbUpdate(body);
 
@@ -30,7 +34,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   return NextResponse.json(serializePlace(data as DbPlaceRow));
 }
 
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   const { error } = await supabase.from('places').delete().eq('id', params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });

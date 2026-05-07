@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/db/supabase';
+import { supabaseAdmin as supabase } from '@/lib/db/supabase';
+import { serializePlace, placeToDbInsert, DbPlaceRow } from '@/lib/db/serializers';
+import { requireAdmin } from '@/lib/auth/admin';
 
 export const dynamic = 'force-dynamic';
-import { serializePlace, placeToDbInsert, DbPlaceRow } from '@/lib/db/serializers';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -25,6 +26,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   const body = await req.json();
   const id = body.id || `p${String(Date.now()).slice(-6)}`;
 
