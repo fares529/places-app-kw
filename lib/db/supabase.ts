@@ -14,19 +14,18 @@ function buildPublic(): SupabaseClient {
 
 function buildAdmin(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Prefer service_role (bypasses RLS), fall back to anon if not configured.
+  // Anon still works because RLS policies allow operations from anon.
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) {
-    throw new Error(
-      'Missing SUPABASE_SERVICE_ROLE_KEY. Add it from Supabase Dashboard → Settings → API → service_role.'
-    );
+    throw new Error('Missing Supabase env vars');
   }
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
 /**
- * Public client — uses anon key, subject to RLS.
+ * Public client — uses anon key.
  * Use for: reading places + categories, inserting visits + app_visits.
- * SAFE TO EXPOSE in browser bundles.
  */
 export const supabase = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
@@ -36,9 +35,9 @@ export const supabase = new Proxy({} as SupabaseClient, {
 });
 
 /**
- * Admin client — uses service_role key, BYPASSES RLS.
- * Use ONLY in server-side API routes for: auth (otps/users), admin CRUD, stats.
- * NEVER import this in a client component or expose in browser code.
+ * Admin client — uses service_role if available (bypasses RLS),
+ * else falls back to anon (relies on RLS policies allowing anon).
+ * Use ONLY in server-side API routes.
  */
 export const supabaseAdmin = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
