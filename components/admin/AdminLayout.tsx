@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, MapPin, Tag, RotateCcw, Lock, LogOut, Shield } from 'lucide-react';
+import { LayoutDashboard, MapPin, Tag, RotateCcw, Lock, LogOut, Shield, Mail } from 'lucide-react';
 import { ReactNode, useEffect, useState, FormEvent } from 'react';
 import { useTranslation } from '@/lib/i18n/context';
 import { resetToMockData } from '@/lib/store/placesStore';
@@ -19,6 +19,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const { t, locale } = useTranslation();
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,10 +32,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const result = await adminLogin(password);
+    const result = await adminLogin(email, password);
     setLoading(false);
     if (result.ok) {
       setAuthed(true);
+      setEmail('');
       setPassword('');
     } else {
       setError(result.error || 'Failed');
@@ -87,15 +89,24 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
           <form onSubmit={handleLogin} className="space-y-3">
             <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={locale === 'ar' ? 'إيميل الأدمن' : 'Admin email'}
+              required
+              autoFocus
+              dir="ltr"
+            />
+            <Input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={locale === 'ar' ? 'كلمة سر الأدمن' : 'Admin password'}
+              placeholder={locale === 'ar' ? 'كلمة السر' : 'Password'}
               required
-              autoFocus
+              dir="ltr"
             />
             {error && <p className="text-xs text-red-600">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading || !password}>
+            <Button type="submit" className="w-full" disabled={loading || !email || !password}>
               <Lock className="w-4 h-4" />
               {loading
                 ? locale === 'ar' ? 'جارٍ التحقق...' : 'Checking...'
