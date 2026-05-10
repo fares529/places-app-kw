@@ -21,11 +21,19 @@ import { useTranslation } from '@/lib/i18n/context';
 import { getPlace, updatePlace } from '@/lib/store/placesStore';
 import { recordVisit } from '@/lib/store/visitsStore';
 import { mockCategories } from '@/lib/data/mockCategories';
+import { getCurrentUser } from '@/lib/store/authStore';
+import {
+  getSubscriptionStatus,
+  getViewedPlaces,
+  recordPlaceView,
+  FREE_VIEW_LIMIT,
+} from '@/lib/store/subscriptionStore';
 import { Rating, PriceRange } from '@/components/ui/Rating';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { PlaceGallery } from '@/components/places/PlaceGallery';
+import { Paywall } from '@/components/places/Paywall';
 import { PlaceForm } from '@/components/admin/PlaceForm';
 
 const PlaceMap = dynamic(() => import('@/components/places/PlaceMap'), {
@@ -44,11 +52,39 @@ export default function PlaceDetailsPage() {
   const [place, setPlace] = useState<Place | null | undefined>(undefined);
   const [visits, setVisits] = useState(0);
   const [showEdit, setShowEdit] = useState(false);
+  const [paywall, setPaywall] = useState<{ blocked: boolean; viewedCount: number } | null>(null);
 
   useEffect(() => {
     const id = params?.id as string;
     let cancelled = false;
     (async () => {
+      // Check subscription / paywall
+      const user = getCurrentUser();
+      let isSubscribed = false;
+      if (user?.id) {
+        try {
+          const status = await getSubscriptionStatus(user.id);
+          isSubscribed = status.isSubscribed;
+        } catch {
+          // If status check fails, default to NOT subscribed
+        }
+      }
+
+      if (cancelled) return;
+
+      if (!isSubscribed) {
+        const viewed = getViewedPlaces();
+        const alreadyViewed = viewed.includes(id);
+        if (!alreadyViewed && viewed.length >= FREE_VIEW_LIMIT) {
+          // Quota exceeded — show paywall instead of details
+          setPaywall({ blocked: true, viewedCount: viewed.length });
+          setPlace(null);
+          return;
+        }
+        // Record this view (counts towards quota)
+        recordPlaceView(id);
+      }
+
       const found = await getPlace(id);
       if (cancelled) return;
       setPlace(found);
@@ -73,6 +109,10 @@ export default function PlaceDetailsPage() {
         {t('common.loading')}
       </div>
     );
+  }
+
+  if (paywall?.blocked) {
+    return <Paywall viewedCount={paywall.viewedCount} limit={FREE_VIEW_LIMIT} />;
   }
 
   if (place === null) {

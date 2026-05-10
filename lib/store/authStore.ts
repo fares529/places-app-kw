@@ -4,6 +4,7 @@ const USER_KEY = 'kpg:user';
 const PENDING_KEY = 'kpg:pending-otp';
 
 export interface User {
+  id: string;
   phone: string;
   fullPhone: string;
   countryCode: string;

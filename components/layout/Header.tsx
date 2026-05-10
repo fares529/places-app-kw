@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Search, MapPin, Globe, User as UserIcon, LogOut, LogIn } from 'lucide-react';
+import { Search, MapPin, Globe, User as UserIcon, LogOut, LogIn, Crown } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n/context';
 import { getCurrentUser, logout, User } from '@/lib/store/authStore';
+import { getSubscriptionStatus } from '@/lib/store/subscriptionStore';
 import { getCountry } from '@/lib/data/countries';
 
 export function Header() {
@@ -15,9 +16,16 @@ export function Header() {
   const [query, setQuery] = useState('');
   const [user, setUser] = useState<User | null>(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
-    setUser(getCurrentUser());
+    const u = getCurrentUser();
+    setUser(u);
+    if (u?.id) {
+      getSubscriptionStatus(u.id).then((s) => setIsSubscribed(s.isSubscribed)).catch(() => {});
+    } else {
+      setIsSubscribed(false);
+    }
   }, [pathname]);
 
   useEffect(() => {
@@ -72,21 +80,29 @@ export function Header() {
                     e.stopPropagation();
                     setShowMenu(!showMenu);
                   }}
-                  className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-primary-50 hover:bg-primary-100 transition-colors"
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-full transition-colors ${
+                    isSubscribed
+                      ? 'bg-amber-50 hover:bg-amber-100'
+                      : 'bg-primary-50 hover:bg-primary-100'
+                  }`}
                   aria-label="Account"
                 >
                   <span className="text-base">{country?.flag}</span>
-                  <UserIcon className="w-3.5 h-3.5 text-primary-700" />
+                  {isSubscribed ? (
+                    <Crown className="w-3.5 h-3.5 text-amber-600 fill-amber-400" />
+                  ) : (
+                    <UserIcon className="w-3.5 h-3.5 text-primary-700" />
+                  )}
                 </button>
                 {showMenu && (
                   <div
                     onClick={(e) => e.stopPropagation()}
-                    className="absolute end-0 top-10 z-30 bg-white rounded-xl border border-gray-100 shadow-lg py-1 w-52"
+                    className="absolute end-0 top-10 z-30 bg-white rounded-xl border border-gray-100 shadow-lg py-1 w-56"
                   >
                     <div className="px-3 py-2 border-b border-gray-100">
                       <div className="flex items-center gap-2">
                         <span className="text-xl">{country?.flag}</span>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="text-xs font-bold text-gray-900 truncate" dir="ltr">
                             {user.fullPhone}
                           </p>
@@ -94,11 +110,26 @@ export function Header() {
                             {locale === 'ar' ? country?.nameAr : country?.nameEn}
                           </p>
                         </div>
+                        {isSubscribed && (
+                          <span className="text-[9px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full">
+                            👑 PRO
+                          </span>
+                        )}
                       </div>
                     </div>
+                    <Link
+                      href="/subscribe"
+                      onClick={() => setShowMenu(false)}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-amber-700 hover:bg-amber-50"
+                    >
+                      <Crown className="w-3.5 h-3.5" />
+                      {isSubscribed
+                        ? (locale === 'ar' ? 'إدارة الاشتراك' : 'Manage Subscription')
+                        : (locale === 'ar' ? 'اشترك في Premium' : 'Subscribe to Premium')}
+                    </Link>
                     <button
                       onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50"
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 border-t border-gray-100"
                     >
                       <LogOut className="w-3.5 h-3.5" />
                       {locale === 'ar' ? 'تسجيل الخروج' : 'Logout'}
